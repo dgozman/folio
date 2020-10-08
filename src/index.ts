@@ -17,35 +17,37 @@
 
 export { expect } from './expect';
 import { TestInfo } from './fixtures';
-import { rootFixtures } from './spec';
-export { Fixtures } from './spec';
+import { rootFixtures, WorkerFixtures, TestFixtures } from './spec';
+export { Fixtures, WorkerFixtures, TestFixtures } from './spec';
 export { Config } from './config';
 export { config, TestInfo, currentTestInfo } from './fixtures';
 
-type BuiltinWorkerFixtures = {
+type W = WorkerFixtures<typeof rootFixtures> & {
   // Worker index that runs this test.
   testWorkerIndex: number;
 };
 
-type BuiltinTestFixtures = {
+type T = TestFixtures<typeof rootFixtures> & W & {
   // Information about the test being run.
   testInfo: TestInfo;
   // Parameter-based relative path to be overridden, empty by default.
   testParametersPathSegment: string;
 };
 
-export const fixtures = rootFixtures.defineWorkerFixtures<BuiltinWorkerFixtures>({
-  testWorkerIndex: async function*() {
-    // Worker injects the value for this one.
-    yield 0;
-  }
-}).defineTestFixtures<BuiltinTestFixtures>({
-  testInfo: async function*() {
-    // Worker injects the value for this one.
-    yield undefined as any;
-  },
+async function* testWorkerIndex(params: W) {
+  // Worker injects the value for this one.
+  yield 0;
+}
 
-  testParametersPathSegment: async function*() {
-    yield '';
-  },
-});
+async function* testInfo(params: T) {
+  // Worker injects the value for this one.
+  yield undefined as TestInfo;
+}
+
+async function* testParametersPathSegment({}: T) {
+  yield '';
+}
+
+export const fixtures = rootFixtures
+    .defineWorkerFixtures({ testWorkerIndex })
+    .defineTestFixtures({ testInfo, testParametersPathSegment });

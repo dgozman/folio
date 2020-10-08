@@ -62,6 +62,9 @@ type AfterEach<WorkerParameters, WorkerFixtures, TestFixtures> = (inner: (fixtur
 type BeforeAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 type AfterAll<WorkerFixtures> = (inner: (fixtures: WorkerFixtures) => Promise<void>) => void;
 
+type ExtractFixture<F, STATE> = F extends ((p: STATE) => AsyncGenerator<infer R>) ? R : never;
+type ExtractFixtures<O extends object, STATE> = { [ key in keyof O]: ExtractFixture<O[key], STATE> };
+
 export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtures = {}> {
   it: It<WorkerParameters, WorkerFixtures, TestFixtures>;
   fit: Fit<WorkerParameters, WorkerFixtures, TestFixtures>;
@@ -112,7 +115,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     return new FixturesImpl(pool);
   }
 
-  defineTestFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & TestFixtures & T) => AsyncGenerator<T[key]> }): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures & T> {
+  defineTestFixtures<O extends object>(o: O): Fixtures<WorkerParameters, WorkerFixtures, TestFixtures & ExtractFixtures<O, WorkerParameters & WorkerFixtures & TestFixtures>> {
     const result = new FixturesImpl(new FixturePool(this._pool));
     for (const [ name, fixture ] of Object.entries(o))
       result._pool.registerFixture(name, 'test', fixture as any, name.startsWith('auto'), false);
@@ -128,7 +131,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
     return result as any;
   }
 
-  defineWorkerFixtures<T extends object>(o: { [ key in keyof T]: (params: WorkerParameters & WorkerFixtures & T) => AsyncGenerator<T[key]> }): Fixtures<WorkerParameters, WorkerFixtures & T, TestFixtures> {
+  defineWorkerFixtures<O extends object>(o: O): Fixtures<WorkerParameters, WorkerFixtures & ExtractFixtures<O, WorkerParameters & WorkerFixtures>, TestFixtures> {
     const result = new FixturesImpl(new FixturePool(this._pool));
     for (const [ name, fixture ] of Object.entries(o))
       result._pool.registerFixture(name, 'worker', fixture as any, name.startsWith('auto'), false);
@@ -162,5 +165,7 @@ export class FixturesImpl<WorkerParameters = {}, WorkerFixtures = {}, TestFixtur
 
 export interface Fixtures<P, W, T> extends FixturesImpl<P, W, T> {
 }
+export type WorkerFixtures<F> = F extends Fixtures<infer P, infer W, infer T> ? P & W : never;
+export type TestFixtures<F> = F extends Fixtures<infer P, infer W, infer T> ? P & W & T : never;
 
 export const rootFixtures = new FixturesImpl(new FixturePool(undefined)) as Fixtures<{}, {}, {}>;

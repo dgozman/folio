@@ -14,21 +14,33 @@
  * limitations under the License.
  */
 
-import { fixtures as baseFixtures } from '../..';
+import { fixtures as baseFixtures, TestFixtures, WorkerFixtures } from '../..';
 
-type WrapWorkerState = {
+type W = WorkerFixtures<typeof baseFixtures> & {
   workerWrap: number;
 };
-type WrapTestState = {
+type T = TestFixtures<typeof baseFixtures> & W & {
   testWrap: string;
+  testFoo: string;
+  testBar: string;
 };
 
-export const fixtures1 = baseFixtures.defineTestFixtures<WrapTestState>({
-  testWrap: async function*() {
-    yield 'testWrap';
-  }
-}).defineWorkerFixtures<WrapWorkerState>({
-  workerWrap: async function*() {
-    yield 42;
-  }
-});
+async function* workerWrap({}: W) {
+  yield 42;
+}
+
+async function* testWrap({ workerWrap }: T) {
+  yield 'testWrap';
+}
+
+async function* testFoo({ testWrap }: T) {
+  yield 'testFoo';
+}
+
+async function* testBar({ testFoo }: T) {
+  yield 'testBar';
+}
+
+export const fixtures1 = baseFixtures
+    .defineWorkerFixtures({ workerWrap })
+    .defineTestFixtures({ testWrap, testFoo, testBar });
