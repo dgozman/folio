@@ -131,16 +131,16 @@ type WorkerParameterInitializer<R> = {
   initParameter(description: string, defaultValue: R): void;
 };
 type WorkerFixtureInitializer<PW, R> = {
-  init(fixture: (params: PW, runTest: (value: R) => Promise<void>) => Promise<void>, options: WorkerFixtureOptions): void;
+  init(fixture: R | ((params: PW, runTest: (value: R) => Promise<void>) => Promise<void>), options: WorkerFixtureOptions): void;
 };
 type WorkerFixtureOverrider<PW, R> = {
-  override(fixture: (params: PW, runTest: (value: R) => Promise<void>) => Promise<void>): void;
+  override(fixture: R | ((params: PW, runTest: (value: R) => Promise<void>) => Promise<void>)): void;
 };
 type TestFixtureInitializer<PWT, R> = {
-  init(fixture: (params: PWT, runTest: (value: R) => Promise<void>) => Promise<void>, options?: TestFixtureOptions): void;
+  init(fixture: R | ((params: PWT, runTest: (value: R) => Promise<void>) => Promise<void>), options?: TestFixtureOptions): void;
 };
 type TestFixtureOverrider<PWT, R> = {
-  override(fixture: (params: PWT, runTest: (value: R) => Promise<void>) => Promise<void>): void;
+  override(fixture: R | ((params: PWT, runTest: (value: R) => Promise<void>) => Promise<void>)): void;
 };
 
 type Fixtures<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> = {
@@ -166,22 +166,22 @@ class FixturesImpl<TestFixtures, WorkerFixtures, WorkerParameters, T, W, P> {
     this._finished = false;
   }
 
-  _init(name: string, fixture: (params: any, runTest: (value: any) => Promise<void>) => Promise<void>, options?: FixtureOptions): void {
+  _init(name: string, fixture: any, options?: FixtureOptions): void {
     if (this._finished)
       throw errorWithCallLocation(`Should not modify fixtures after build()`);
-    this._pool.registerFixture(name as string, options && options.scope === 'worker' ? 'worker' : 'test', fixture as any, options && options.auto);
+    this._pool.registerFixture(name as string, options && options.scope === 'worker' ? 'worker' : 'test', fixture, options && options.auto);
   }
 
-  _override(name: string, fixture: (params: any, runTest: (value: any) => Promise<void>) => Promise<void>): void {
+  _override(name: string, fixture: any): void {
     if (this._finished)
       throw errorWithCallLocation(`Should not modify fixtures after build()`);
-    this._pool.overrideFixture(name as string, fixture as any);
+    this._pool.overrideFixture(name as string, fixture);
   }
 
   _initParameter<N extends keyof P>(name: N, description: string, defaultValue: P[N]): void {
     if (this._finished)
       throw errorWithCallLocation(`Should not modify fixtures after build()`);
-    this._pool.registerFixture(name as string, 'worker', async ({}, runTest) => runTest(defaultValue), false);
+    this._pool.registerFixture(name as string, 'worker', defaultValue, false);
     this._pool.registerWorkerParameter({
       name: name as string,
       description,

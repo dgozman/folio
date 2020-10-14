@@ -24,7 +24,8 @@ type Scope = 'test' | 'worker';
 type FixtureRegistration = {
   name: string;
   scope: Scope;
-  fn: Function;
+  fn?: Function;
+  value?: any;
   auto: boolean;
   isOverride: boolean;
   deps: string[];
@@ -99,7 +100,7 @@ class Fixture {
   pool: FixturePool;
   registration: FixtureRegistration;
   usages: Set<Fixture>;
-  hasGeneratorValue: boolean;
+  hasDefinedValue: boolean;
   value: any;
   _teardownFenceCallback: (value?: unknown) => void;
   _tearDownComplete: Promise<void>;
@@ -110,15 +111,25 @@ class Fixture {
     this.pool = pool;
     this.registration = registration;
     this.usages = new Set();
-    this.hasGeneratorValue = registration.name in parameters;
-    this.value = this.hasGeneratorValue ? parameters[registration.name] : null;
-    if (this.hasGeneratorValue && this.registration.deps.length)
-      throw errorWithCallLocation(`Parameter fixture "${this.registration.name}" should not have dependencies`);
+
+    if (registration.name in parameters) {
+      this.hasDefinedValue = true;
+      this.value = parameters[registration.name];
+      if (this.hasDefinedValue && this.registration.deps.length)
+        throw errorWithCallLocation(`Parameter fixture "${this.registration.name}" should not have dependencies`);
+    } else if (!registration.fn) {
+      this.hasDefinedValue = true;
+      this.value = registration.value;
+    } else {
+      this.hasDefinedValue = false;
+      this.value = null;
+    }
   }
 
   async setup() {
-    if (this.hasGeneratorValue)
+    if (this.hasDefinedValue)
       return;
+
     const params = {};
     for (const name of this.registration.deps) {
       const registration = this.pool._resolveDependency(this.registration, name);
@@ -135,7 +146,7 @@ class Fixture {
     const setupFence = new Promise((f, r) => { setupFenceFulfill = f; setupFenceReject = r; });
     const teardownFence = new Promise(f => this._teardownFenceCallback = f);
     debugLog(`setup fixture "${this.registration.name}"`);
-    this._tearDownComplete = this.registration.fn(params, async (value: any) => {
+    this._tearDownComplete = this.registration.fn!(params, async (value: any) => {
       if (called)
         throw errorWithCallLocation(`Cannot provide fixture value for the second time`);
       called = true;
@@ -154,7 +165,7 @@ class Fixture {
   }
 
   async teardown() {
-    if (this.hasGeneratorValue) {
+    if (this.hasDefinedValue) {
       this.pool.instances.delete(this.registration);
       return;
     }
@@ -215,7 +226,7 @@ export class FixturePool {
     return result;
   }
 
-  registerFixture(name: string, scope: Scope, fn: Function, auto: boolean) {
+  registerFixture(name: string, scope: Scope, fnOrValue: Function | any, auto: boolean) {
     const previous = this.registrations.get(name);
     if (previous) {
       if (previous.scope !== scope)
@@ -224,18 +235,30 @@ export class FixturePool {
         throw errorWithCallLocation(`Fixture "${name}" has already been registered. Use 'override' to override it in a specific test file.`);
     }
 
-    const deps = fixtureParameterNames(fn);
-    const registration: FixtureRegistration = { name, scope, fn, auto, isOverride: false, deps, super: previous };
+    const registration: FixtureRegistration = { name, scope, auto, isOverride: false, deps: [], super: previous };
+    if (typeof fnOrValue === 'function') {
+      const deps = fixtureParameterNames(fnOrValue);
+      registration.fn = fnOrValue;
+      registration.deps = deps;
+    } else {
+      registration.value = fnOrValue;
+    }
     this.registrations.set(name, registration);
   }
 
-  overrideFixture(name: string, fn: Function) {
+  overrideFixture(name: string, fnOrValue: Function | any) {
     const previous = this.registrations.get(name);
     if (!previous)
       throw errorWithCallLocation(`Fixture "${name}" has not been registered yet. Use 'init' instead.`);
 
-    const deps = fixtureParameterNames(fn);
-    const registration: FixtureRegistration = { name, scope: previous.scope, fn, auto: previous.auto, isOverride: true, deps, super: previous };
+    const registration: FixtureRegistration = { name, scope: previous.scope, auto: previous.auto, isOverride: true, deps: [], super: previous };
+    if (typeof fnOrValue === 'function') {
+      const deps = fixtureParameterNames(fnOrValue);
+      registration.fn = fnOrValue;
+      registration.deps = deps;
+    } else {
+      registration.value = fnOrValue;
+    }
     this.registrations.set(name, registration);
   }
 

@@ -430,3 +430,20 @@ it('should work with proxy syntax', async ({ runInlineFixturesTest }) => {
   });
   expect(results[0].status).toBe('passed');
 });
+
+it('should work with value syntax', async ({ runInlineFixturesTest }) => {
+  const { results } = await runInlineFixturesTest({
+    'a.test.js': `
+      const builder = baseFolio.extend();
+      builder.t.init(async ({}, run) => await run('t'));
+      builder.w.init('w', { scope: 'worker' });
+      builder.t.override('override');
+      const { it } = builder.build();
+      it('should work', async ({t, w}) => {
+        expect(t).toBe('override');
+        expect(w).toBe('w');
+      });
+    `,
+  });
+  expect(results[0].status).toBe('passed');
+});
