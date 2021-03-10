@@ -17,7 +17,7 @@
 import { Console } from 'console';
 import * as util from 'util';
 import { debugLog, setDebugWorkerIndex } from './debug';
-import { assignConfig, setCurrentWorkerIndex } from './fixtures';
+import { assignConfig, setCurrentVariation, setCurrentWorkerIndex } from './fixtures';
 import { RunPayload, TestOutputPayload, WorkerInitParams } from './ipc';
 import { serializeError } from './util';
 import { fixtureLoader, WorkerRunner } from './workerRunner';
@@ -71,6 +71,7 @@ process.on('uncaughtException', error => {
 });
 
 process.on('message', async message => {
+  console.log('<<worker', message.params);
   if (message.method === 'init') {
     initParams = message.params as WorkerInitParams;
     setDebugWorkerIndex(initParams.workerIndex);
@@ -90,6 +91,7 @@ process.on('message', async message => {
   if (message.method === 'run') {
     const runPayload = message.params as RunPayload;
     debugLog(`run`, runPayload);
+    setCurrentVariation(initParams.variation);
     testRunner = new WorkerRunner(initParams.variation, initParams.repeatEachIndex, runPayload);
     for (const event of ['testBegin', 'testEnd', 'done'])
       testRunner.on(event, sendMessageToParent.bind(null, event));
@@ -123,6 +125,8 @@ function sendMessageToParent(method, params = {}) {
     if (method !== 'ready')
       debugLog(`send`, { method, params });
     process.send({ method, params });
+    if (method != 'stdOut' && method != 'stdErr')
+      console.log('worker>>', params);
   } catch (e) {
     // Can throw when closing.
   }

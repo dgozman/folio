@@ -44,6 +44,14 @@ export function currentWorkerIndex() {
   return workerIndex;
 }
 
+let workerVariation: folio.WorkerVariation = {} as any;
+export function setCurrentWorkerVariation(v: folio.WorkerVariation) {
+  workerVariation = v;
+}
+export function currentWorkerVariation() {
+  return workerVariation;
+}
+
 export let config: Config = {} as any;
 export function assignConfig(c: Config) {
   config = Object.assign(config, c);

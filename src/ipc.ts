@@ -20,7 +20,7 @@ export type { TestStatus } from './types';
 export type WorkerInitParams = {
   workerIndex: number;
   fixtureFiles: string[];
-  variation: folio.SuiteVariation;
+  workerVariation: folio.WorkerVariation;
   repeatEachIndex: number;
   config: Config;
 };
@@ -44,6 +44,7 @@ export type TestEntry = {
   timeout: number;
   expectedStatus: TestStatus;
   skipped: boolean;
+  testVariation: folio.TestVariation;
 };
 
 export type RunPayload = {

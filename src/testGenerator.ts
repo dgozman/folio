@@ -41,8 +41,11 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
       fn(suite);
 
     suite._renumber();
+    suite._workerHashVariationKeys.sort();
 
     for (const variation of suite.variations) {
+      const workerHash = serializeVariation(variation, suite._workerHashVariationKeys);
+
       for (const spec of specs) {
         const modifier = new TestModifier();
         modifier.setTimeout(config.timeout);
@@ -69,6 +72,7 @@ export function generateTests(suites: RootSuite[], config: Config, fixtureLoader
           test.expectedStatus = modifier._expectedStatus;
           test.timeout = modifier._timeout;
           test.annotations = modifier._annotations;
+          test._workerHash = workerHash + `#repeat-${i}`;
         }
       }
     }
@@ -89,9 +93,13 @@ function filterOnly(suite: Suite) {
   return false;
 }
 
-function serializeVariation(variation: folio.SuiteVariation): string {
+function serializeVariation(variation: folio.SuiteVariation, keys?: string[]): string {
   const tokens = [];
-  for (const [name, value] of Object.entries(variation))
-    tokens.push(`${name}=${value}`);
+  if (!keys) {
+    keys = Object.keys(variation);
+    keys.sort();
+  }
+  for (const key of keys)
+    tokens.push(`${key}=${variation[key]}`);
   return tokens.join(', ');
 }

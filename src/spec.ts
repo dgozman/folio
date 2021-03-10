@@ -31,7 +31,7 @@ export function clearCurrentFile() {
   currentFile = undefined;
 }
 
-export function createTestImpl(options: folio.SuiteOptions) {
+export function createTestImpl(options: folio.Options) {
   if (!currentFile)
     throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
 
@@ -46,7 +46,7 @@ export function createTestImpl(options: folio.SuiteOptions) {
 
   const suites: Suite[] = [rootSuite];
 
-  function spec(type: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => void | Function, fn?: Function) {
+  function spec(type: 'default' | 'skip' | 'only', title: string, modifierFn: (modifier: TestModifier, variation: folio.WorkerVariation & folio.TestVariation) => void | Function, fn?: Function) {
     if (!currentFile)
       throw errorWithCallLocation(`Test cannot be defined in a fixture file.`);
 

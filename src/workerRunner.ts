@@ -35,21 +35,21 @@ export class WorkerRunner extends EventEmitter {
   private _entries: Map<string, TestEntry>;
   private _remaining: Map<string, TestEntry>;
   private _isStopped: any;
-  private _variation: folio.SuiteVariation;
+  private _workerVariation: folio.WorkerVariation;
   _testId: string | null;
   private _testInfo: TestInfo | null = null;
   private _rootSuite: Suite;
   private _loaded = false;
   private _repeatEachIndex: number;
 
-  constructor(variation: folio.SuiteVariation, repeatEachIndex: number, runPayload: RunPayload) {
+  constructor(workerVariation: folio.WorkerVariation, repeatEachIndex: number, runPayload: RunPayload) {
     super();
     this._rootSuite = new Suite('');
     this._rootSuite.file = runPayload.file;
     this._repeatEachIndex = repeatEachIndex;
     this._entries = new Map(runPayload.entries.map(e => [ e.testId, e ]));
     this._remaining = new Map(runPayload.entries.map(e => [ e.testId, e ]));
-    this._variation = variation;
+    this._workerVariation = workerVariation;
   }
 
   loadFixtureFiles(files: string[]) {
@@ -86,8 +86,6 @@ export class WorkerRunner extends EventEmitter {
     clearCurrentFile();
     revertBabelRequire();
     for (const suite of suites) {
-      for (const fn of fixtureLoader.configureFunctions)
-        fn(suite);
       suite._renumber();
       suite.findSpec(spec => {
         spec._appendTest(this._variation, this._repeatEachIndex);
@@ -129,7 +127,7 @@ export class WorkerRunner extends EventEmitter {
     const test = spec.tests[0];
     if (!this._entries.has(test._id))
       return;
-    const { timeout, expectedStatus, skipped, retry } = this._entries.get(test._id);
+    const { timeout, expectedStatus, skipped, retry, testVariation } = this._entries.get(test._id);
     const deadline = timeout ? monotonicTime() + timeout : 0;
     this._remaining.delete(test._id);
 
@@ -142,8 +140,8 @@ export class WorkerRunner extends EventEmitter {
       line: spec.line,
       column: spec.column,
       fn: spec.fn,
-      options: spec._options(),
-      variation: this._variation,
+      testVariation,
+      workerVariation: this._workerVariation,
       repeatEachIndex: this._repeatEachIndex,
       workerIndex: currentWorkerIndex(),
       retry,
@@ -219,7 +217,7 @@ export class WorkerRunner extends EventEmitter {
       // Do not run the test when beforeEach hook fails.
       if (!this._isStopped && testInfo.status !== 'failed') {
         // Resolve artifacts and output paths.
-        const testPathSegment = test.spec._options().testPathSegment || '';
+        const testPathSegment = fixtureLoader.testPathSegment ? fixtureLoader.testPathSegment(testInfo) : '';
         testInfo.relativeArtifactsPath = relativeArtifactsPath(testInfo, testPathSegment);
         testInfo.outputPath = outputPath(testInfo);
         testInfo.snapshotPath = snapshotPath(testInfo);

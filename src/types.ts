@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { Expect } from './expectType';
+import { Expect } from './expectType';
 
 export interface Config {
   forbidOnly?: boolean;
@@ -60,7 +60,7 @@ export interface TestModifier {
 }
 
 export interface TestModifierFunction {
-  (modifier: TestModifier, variation: folio.SuiteVariation): any;
+  (modifier: TestModifier, variation: folio.WorkerVariation & folio.TestVariation): any;
 }
 
 export interface TestInfo {
@@ -72,8 +72,8 @@ export interface TestInfo {
   fn: Function;
 
   // Parameters
-  options: folio.SuiteOptions;
-  variation: folio.SuiteVariation;
+  workerVariation: folio.WorkerVariation;
+  testVariation: folio.TestVariation;
   workerIndex: number;
   repeatEachIndex: number;
   retry: number;
@@ -98,7 +98,7 @@ export interface TestInfo {
 
 interface SuiteFunction {
   (name: string, inner: () => void): void;
-  (name: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => any, inner: () => void): void;
+  (name: string, modifierFn: (modifier: TestModifier, variation: folio.WorkerVariation & folio.TestVariation) => any, inner: () => void): void;
 }
 interface SuiteFunctionWithModifiers extends SuiteFunction {
   only: SuiteFunction;
@@ -110,7 +110,7 @@ interface SuiteHookFunction {
 
 interface TestFunction {
   (name: string, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
-  (name: string, modifierFn: (modifier: TestModifier, variation: folio.SuiteVariation) => any, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
+  (name: string, modifierFn: (modifier: TestModifier, variation: folio.WorkerVariation & folio.TestVariation) => any, inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
 }
 interface TestHookFunction {
   (inner: (fixtures: folio.WorkerFixtures & folio.TestFixtures) => Promise<void> | void): void;
@@ -134,11 +134,25 @@ export interface TestFixture<R = any> {
   (fixtures: folio.WorkerFixtures & folio.TestFixtures, run: (value: R) => Promise<void>): Promise<any>;
 }
 export interface ToBeRenamedInterface {
+  // Test fixtures. These fixtures are set up and shut down for each
+  // test that references them.
   testFixtures?: { [key: string]: TestFixture };
+
+  // Automatic test fixtures, set up for each test even if not referenced.
   autoTestFixtures?: { [key: string]: TestFixture };
+
+  // Worker fixtures. These fixtures are set up and shut down for each
+  // worker process, if any test in the worker references them.
   workerFixtures?: { [key: string]: WorkerFixture };
+
+  // Automatic worker fixtures, set up for each worker process even if not referenced.
   autoWorkerFixtures?: { [key: string]: WorkerFixture };
+
+  // Configuration function is called for each suite, to set up test variations if needed.
   configureSuite?: (suite: RootSuite) => any;
+
+  // Relative path, empty by default.
+  testPathSegment?: (testInfo: TestInfo) => string;
 }
 
 
@@ -164,7 +178,8 @@ export interface Spec {
 }
 export interface Test {
   spec: Spec;
-  variation: folio.SuiteVariation;
+  workerVariation: folio.WorkerVariation;
+  testVariation: folio.TestVariation;
   results: TestResult[];
   skipped: boolean;
   slow: boolean;
@@ -190,9 +205,11 @@ export interface TestError {
   value?: string;
 }
 export interface RootSuite extends Suite {
-  options: folio.SuiteOptions;
-  variations: folio.SuiteVariation[];
-  vary<K extends keyof folio.SuiteVariation>(key: K, values: folio.SuiteVariation[K][]): void;
+  options: folio.Options;
+  workerVariations: folio.WorkerVariation[];
+  testVariations: folio.TestVariation[];
+  varyWorker<K extends keyof folio.WorkerVariation>(key: K, values: folio.WorkerVariation[K][]): void;
+  varyTest<K extends keyof folio.WorkerVariation>(key: K, values: folio.WorkerVariation[K][]): void;
 }
 
 declare global {
@@ -201,6 +218,8 @@ declare global {
     interface WorkerFixtures {
       // Worker index that runs this test, built-in Folio fixture.
       testWorkerIndex: number;
+      // Current worker variation, built-in Folio fixture.
+      workerCariation: folio.WorkerVariation;
     }
 
     // Fixtures initialized once per test, available to any test.
@@ -210,13 +229,16 @@ declare global {
     }
 
     // Options that can be passed to createTest().
-    interface SuiteOptions {
-      // Relative path, empty by default, built-in Folio option.
-      testPathSegment?: string;
+    interface Options {
     }
 
     // A bag of key/value properties. Tests may be run multiple times, with some combinations of these properties.
-    interface SuiteVariation {
+    // Test with different worker variations are run in different worker processes.
+    interface WorkerVariation {
+    }
+
+    // A bag of key/value properties. Tests may be run multiple times, with some combinations of these properties.
+    interface TestVariation {
     }
   }
 }

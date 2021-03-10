@@ -35,11 +35,12 @@ it('should run in each variation', async ({ runInlineTest }) => {
     'a.test.ts': `
       test('runs 12 times', (test, variation) => {
         test.skip(variation.foo === 'foo1' && variation.bar === 'bar1' && variation.baz === 'baz1');
-      }, async ({ testInfo }) => {
+      }, async ({ testInfo, variation }) => {
         const { foo, bar, baz } = testInfo.variation;
         expect(foo).toContain('foo');
         expect(bar).toContain('bar');
         expect(bar).toContain('bar');
+        expect(variation).toEqual(testInfo.variation);
         console.log(foo + ':' + bar + ':' + baz);
       });
     `
@@ -51,7 +52,7 @@ it('should run in each variation', async ({ runInlineTest }) => {
   for (const foo of ['foo1', 'foo2', 'foo3']) {
     for (const bar of ['bar1', 'bar2']) {
       for (const baz of ['baz1', 'baz2']) {
-        expect(variationsList.find(o => o.foo === foo && o.bar === bar && o.baz === baz)).toBeTruthy();
+        expect(variationsList.find((o: any) => o.foo === foo && o.bar === bar && o.baz === baz)).toBeTruthy();
         if (foo !== 'foo1' || bar !== 'bar1' || baz !== 'baz1')
           expect(result.output).toContain(`${foo}:${bar}:${baz}`);
       }
@@ -59,7 +60,7 @@ it('should run in each variation', async ({ runInlineTest }) => {
   }
 });
 
-it('should throw on duplicate parameters', async ({ runInlineTest }) => {
+it('should throw on duplicate keys', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'one.fixtures.js': `
       function configureSuite(suite) {
@@ -110,20 +111,22 @@ it('should provide variation in beforeEach', async ({ runInlineTest }) => {
   expect(outputs.sort()).toEqual(['foo1', 'foo2', 'foo3']);
 });
 
-it('should not reuse worker for different variations', async ({ runInlineTest }) => {
+it.only('should reuse worker as instructed', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'one.fixtures.js': `
       function configureSuite(suite) {
-        suite.vary('param', ['value1', 'value2']);
+        suite.vary('param1', ['value1', 'value2']);
+        suite.vary('param2', ['value1', 'value2'], false);
       }
       exports.toBeRenamed = { configureSuite };
     `,
     'a.test.js': `
       test('succeeds', async ({ testInfo, testWorkerIndex }) => {
-        expect(testWorkerIndex).toBe(testInfo.variation.param === 'value1' ? 0 : 1);
+        expect(testWorkerIndex).toBe(testInfo.variation.param1 === 'value1' ? 0 : 1);
       });
     `,
   });
-  expect(result.passed).toBe(2);
+  // Two tests per worker, depending on the param1 value.
+  expect(result.passed).toBe(4);
   expect(result.exitCode).toBe(0);
 });

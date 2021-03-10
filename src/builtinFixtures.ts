@@ -14,20 +14,22 @@
  * limitations under the License.
  */
 
-import { currentTestInfo, currentWorkerIndex } from './fixtures';
+import { currentTestInfo, currentVariation, currentWorkerIndex } from './fixtures';
 import { ToBeRenamedInterface } from './types';
 
 async function testWorkerIndex({}, runTest) {
-  // Worker injects the value for this one.
   await runTest(currentWorkerIndex());
 }
 
+async function variation({}, runTest) {
+  await runTest(currentVariation());
+}
+
 async function testInfo({}, runTest) {
-  // Worker injects the value for this one.
   await runTest(currentTestInfo());
 }
 
 export const builtinFixtures: ToBeRenamedInterface = {
-  workerFixtures: { testWorkerIndex },
+  workerFixtures: { testWorkerIndex, variation },
   testFixtures: { testInfo },
 };

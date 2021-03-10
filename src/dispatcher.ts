@@ -24,7 +24,8 @@ import { Suite, Test } from './test';
 
 type DispatcherEntry = {
   runPayload: RunPayload;
-  variation: folio.SuiteVariation;
+  testVariation: folio.TestVariation;
+  workerVariation: folio.WorkerVariation;
   hash: string;
   repeatEachIndex: number;
 };
@@ -98,7 +99,7 @@ export class Dispatcher {
     for (const suite of this._suite.suites) {
       const testsByWorkerHash = new Map<string, {
         tests: Test[],
-        variation: folio.SuiteVariation,
+        workerVariation: folio.WorkerVariation,
         repeatEachIndex: number,
       }>();
       for (const spec of suite._allSpecs()) {
@@ -107,7 +108,7 @@ export class Dispatcher {
           if (!entry) {
             entry = {
               tests: [],
-              variation: test.variation,
+              workerVariation: test.workerVariation,
               repeatEachIndex: test._repeatEachIndex,
             };
             testsByWorkerHash.set(test._workerHash, entry);
@@ -124,11 +125,12 @@ export class Dispatcher {
             testId: test._id,
             expectedStatus: test.expectedStatus,
             timeout: test.timeout,
-            skipped: test.skipped
+            skipped: test.skipped,
+            testVariation: test.testVariation,
           };
         });
         result.push({
-          variation: entry.variation,
+          workerVariation: entry.workerVariation,
           runPayload: {
             entries,
             file: suite.file,

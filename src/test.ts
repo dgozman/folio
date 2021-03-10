@@ -44,7 +44,7 @@ class Base {
     return this.titlePath().join(' ');
   }
 
-  _options(): folio.SuiteOptions {
+  _options(): folio.Options {
     return this.parent ? this.parent._options() : {} as any;
   }
 
@@ -71,11 +71,9 @@ export class Spec extends Base implements types.Spec {
   _appendTest(variation: folio.SuiteVariation, repeatEachIndex: number) {
     const rootSuite = this._rootSuite()!;
     const test = new Test(this);
-    const variationString = serializeVariation(variation) + `#repeat-${repeatEachIndex}#`;
-    test._id = `${rootSuite._ordinal}/${this._ordinal}@${this.file}::[${variationString}]`;
+    test._id = `${rootSuite._ordinal}/${this._ordinal}@${this.file}::[${serializeVariation(variation)}]#repeat-${repeatEachIndex}`;
     test.variation = variation;
     test._repeatEachIndex = repeatEachIndex;
-    test._workerHash = variationString;
     this.tests.push(test);
     return test;
   }
@@ -239,10 +237,11 @@ export class Test implements types.Test {
 }
 
 export class RootSuite extends Suite implements types.RootSuite {
-  options: folio.SuiteOptions = {} as any;
+  options: folio.Options = {} as any;
   variations: folio.SuiteVariation[] = [{}];
+  _workerHashVariationKeys: string[] = [];
 
-  vary<K extends keyof folio.SuiteVariation>(key: K, values: folio.SuiteVariation[K][]): void {
+  vary<K extends keyof folio.SuiteVariation>(key: K, values: folio.SuiteVariation[K][], separateWorker = true): void {
     const newVariations: folio.SuiteVariation[] = [];
     for (const v of this.variations) {
       if (key in v)
@@ -251,9 +250,11 @@ export class RootSuite extends Suite implements types.RootSuite {
         newVariations.push({ ...v, [key]: value });
     }
     this.variations = newVariations;
+    if (separateWorker)
+      this._workerHashVariationKeys.push(key);
   }
 
-  _options(): folio.SuiteOptions {
+  _options(): folio.Options {
     return this.options;
   }
 

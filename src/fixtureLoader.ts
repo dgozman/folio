@@ -18,6 +18,7 @@ import { FixturePool } from './fixtures';
 import { installTransform } from './transform';
 import { builtinFixtures } from './builtinFixtures';
 import { RootSuite } from './test';
+import { TestInfo } from './types';
 
 const kExportsName = 'toBeRenamed';
 
@@ -25,6 +26,7 @@ export class FixtureLoader {
   readonly fixtureFiles: string[] = [];
   readonly fixturePool: FixturePool = new FixturePool(undefined);
   readonly configureFunctions: ((suite: RootSuite) => void)[] = [];
+  testPathSegment: (testInfo: TestInfo) => string | undefined;
 
   constructor() {
     this._loadFolioObject(builtinFixtures);
@@ -43,6 +45,11 @@ export class FixtureLoader {
       if (typeof folioObject.configureSuite !== 'function')
         throw new Error(`"${kExportsName}.configureSuite" must be a function`);
       this.configureFunctions.push(folioObject.configureSuite);
+    }
+    if ('testPathSegment' in folioObject) {
+      if (typeof folioObject.testPathSegment !== 'function')
+        throw new Error(`"${kExportsName}.testPathSegment" must be a function`);
+      this.testPathSegment = folioObject.testPathSegment;
     }
   }
 
